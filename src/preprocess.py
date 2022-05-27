@@ -1,3 +1,6 @@
+from asyncio import FastChildWatcher
+from email.policy import default
+from tkinter.tix import Tree
 from nltk.tokenize import RegexpTokenizer, WhitespaceTokenizer
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
@@ -5,10 +8,17 @@ from nltk import stem
 
 from bs4 import BeautifulSoup
 import re
+from sklearn.ensemble import VotingClassifier
+from sortedcontainers import SortedValuesView
 import unidecode
 
 import json
-import os
+import os, sys
+import argparse
+
+from PIL import Image
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
 
 
 w_tokenizer = WhitespaceTokenizer()
@@ -16,6 +26,41 @@ lemmatizer = stem.WordNetLemmatizer()
 
 english_stop_words = stopwords.words('english')
 english_stop_words = set(english_stop_words)
+
+def show_result(flag):
+	vocabs = {}
+	tokens_data_path = '../data/tokens/'
+	for file_name in [file for file in os.listdir(tokens_data_path) if file.endswith('.json')]:
+		data = None
+		with open(tokens_data_path + file_name) as json_file:
+			data = json.load(json_file)
+
+		for token in data['tokens']:
+			if token not in vocabs:
+				vocabs[token] = 0
+			vocabs[token] += 1
+
+	# word cloud
+	wc = WordCloud(background_color="black",width=4000,height=4000, max_words=30,relative_scaling=0.5,normalize_plurals=False).generate_from_frequencies(vocabs)
+	plt.figure(figsize=(60, 16))
+	plt.imshow(wc)
+
+	plt.savefig('../result/tokens_wordcloud.png', transparent=True)
+	if (flag):
+		plt.show()
+
+	# bar graph of most common words
+	plt.figure(figsize=(30, 16))
+	sorted_vocabs = dict(sorted(vocabs.items(), key=lambda item: item[1], reverse=True))
+	keys = list(sorted_vocabs.keys())[0:32]
+	values = list(sorted_vocabs.values())[0:32]
+	plt.bar(keys, values)
+
+	plt.savefig('../result/tokens_bar.png', transparent=True)
+	if (flag):
+		plt.show()
+
+		
 
 def remove_html(text):
 	# remove html tags
@@ -232,15 +277,36 @@ def tokenize_data():
 		article_text = data['text']
 
 		if (data != None and article_text != "" and article_text != None):
-			article_text = lemmatization(article_text[1:-1])
+			tokens = lemmatization(article_text[1:-1])
 
 		with open('../data/tokens/article'+str(data['index'])+'.json', 'w') as f:
-				json.dump({'index': data['index'], 'text':article_text, 'label': data['label']}, f, 
+				json.dump({'index': data['index'], 'tokens': tokens, 'label': data['label']}, f, 
 							separators=(',', ':'), ensure_ascii=False, indent=4)
 
+def remove_old():
+	pass
+
 def main():
-	clean_data()
-	tokenize_data()
+	usage = "cleaning data and tokenizing it."
+	parser = argparse.ArgumentParser(description=usage)
+	parser.add_argument("-c", action="store_true", default=False, help="remove old data from clean and token dir")
+	parser.add_argument("-r", action="store_true", default=False, help="show results of data clean")
+	parser.add_argument("-p", action="store_true", default=False, help="preprocess data and clean data")
+	parser.add_argument("-t", action="store_true", default=False, help="tokenize data and wirte them in /data/tokens")
+
+	args = parser.parse_args()
+
+	if (not args.c and not args.p and not args.t and not args.r):
+		parser.print_help()
+		sys.exit(0)
+
+	if (args.c):
+		remove_old()
+	if (args.p):
+		clean_data()
+	if (args.t):
+		tokenize_data()
+		show_result(args.r)
 
 if __name__ == '__main__':
 	main()
