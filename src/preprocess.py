@@ -56,7 +56,7 @@ def show_result(flag):
 	values = list(sorted_vocabs.values())[0:32]
 	plt.bar(keys, values)
 
-	plt.savefig('../result/tokens_bar.png', transparent=True)
+	plt.savefig('../result/tokens_bar.png', transparent=False)
 	if (flag):
 		plt.show()
 
